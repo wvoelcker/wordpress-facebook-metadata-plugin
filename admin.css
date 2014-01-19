@@ -1,0 +1,6 @@
+.facebookmetadata-metadataformtable { width:100% };
+.facebookmetadata-metadataformtable td { vertical-align:top; padding:0 10px; }
+.facebookmetadata-metadataformtable td.label { width:100px; vertical-align:top; }
+.facebookmetadata-metadataformtable td p  { padding:0; margin:0 0 10px 0; }
+.facebookmetadata-metadataformtable input.text { width:100%; }
+.facebookmetadata-metadataformtable input.button { margin-right:10px; }
