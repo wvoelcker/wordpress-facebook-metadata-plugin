@@ -82,7 +82,15 @@ class FacebookMetadataPlugin {
 					} else {
 						$fieldtolookup = $fieldname;
 					}
+
+					// Try post-specific value
 					$value = FacebookMetadataPlugin::getMetadataValue($post, FacebookMetadataPlugin::getFullMetaDataKey($fieldtolookup));
+
+					// Try fallback to global default value
+					if (empty($value)) {
+						$value = get_option(FacebookMetadataPlugin::NS."-".FacebookMetadataPlugin::getSubnamespace("defaults")."-".$fieldtolookup);
+					}
+
 					if (empty($value)) continue;
 					?>
 					<meta property="og:<?php echo htmlspecialchars($fieldname);?>" content="<?php echo htmlspecialchars($value);?>"/>
@@ -97,13 +105,17 @@ class FacebookMetadataPlugin {
 	}
 
 	static public function addDefaultOptionsPage() {
+		$requiredCapability = "manage_options";
 		add_options_page(
 			"Facebook sharing options",
 			"Facebook",
-			"manage_options",
+			$requiredCapability,
 			FacebookMetadataPlugin::NS."-defaults-page",
-			function() {
-
+			function() use ($requiredCapability) {
+				if (!current_user_can($requiredCapability)) {
+					echo "Permission denied";
+					exit;
+				}
 				?>
 				<div class="wrap">
 					<h1>Facebook sharing options (default for all pages)</h1>
@@ -156,15 +168,19 @@ class FacebookMetadataPlugin {
 		);
 	}
 
-	static public function renderMetadataForm($post, $keys) {
-
+	static public function getSubnamespace($post) {
 		$isDefaults = (is_string($post) and ($post == "defaults"));
-
-		// Work out subnamespace for the metadata
 		$subnamespace = "postmeta";
 		if ($isDefaults) {
 			$subnamespace .= "-default";
 		}
+
+		return $subnamespace;
+	}
+
+	static public function renderMetadataForm($post, $keys) {
+		$isDefaults = (is_string($post) and ($post == "defaults"));
+		$subnamespace = FacebookMetadataPlugin::getSubnamespace($post);
 
 		// Get current values for the fields
 		$currentmetadata = array();
@@ -202,7 +218,7 @@ class FacebookMetadataPlugin {
 								self::outputTextField($fieldid."_url", $value);
 								$fieldids[] = $fieldid."_url";
 								?>
-								<p><input id="<?php echo htmlspecialchars($fieldid);?>" class="button" type="button" value="Upload / Choose Image" /> (Must be larger than 200px by 200px)</p>
+								<p><input id="<?php echo htmlspecialchars($fieldid);?>" class="button <?php echo FacebookMetadataPlugin::NS;?>-image" type="button" value="Upload / Choose Image" /> (Must be larger than 200px by 200px)</p>
 								<?php
 								break;
 							default:
