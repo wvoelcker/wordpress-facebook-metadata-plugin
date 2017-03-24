@@ -40,8 +40,9 @@ class FacebookMetadataPlugin {
 	public function go() {
 
 		// Add interface for setting relevant metadata
-		add_action("add_meta_boxes_post", array(FacebookMetadataPlugin, "addMetaBoxPost"));
-		add_action("add_meta_boxes_page", array(FacebookMetadataPlugin, "addMetaBoxPage"));
+		add_action("add_meta_boxes_post", array("FacebookMetadataPlugin", "addMetaBoxPost"));
+		add_action("add_meta_boxes_page", array("FacebookMetadataPlugin", "addMetaBoxPage"));
+		add_action("admin_menu", array("FacebookMetadataPlugin", "addDefaultOptionsPage"));
 
 		// Add admin javascript, e.g. activates the image upload / choose button
 		// And admin CSS
@@ -88,11 +89,42 @@ class FacebookMetadataPlugin {
 					<?php
 				}
 			}
-		}); 
+		});
 	}
 
 	static public function getFullMetaDataKey($fieldname) {
 		return FacebookMetadataPlugin::NS."-".$fieldname;
+	}
+
+	static public function addDefaultOptionsPage() {
+		add_options_page(
+			"Facebook sharing options",
+			"Facebook",
+			"manage_options",
+			FacebookMetadataPlugin::NS."-defaults-page",
+			function() {
+
+				?>
+				<div class="wrap">
+					<h1>Facebook sharing options (default for all pages)</h1>
+					<form method="post" action="options.php" class="<?php echo FacebookMetadataPlugin::NS;?>-defaults-form">
+					<?php
+						wp_nonce_field("update-options");
+
+						$options = FacebookMetadataPlugin::renderMetadataForm("defaults", FacebookMetadataPlugin::getFields());
+
+						?>
+						<input type="hidden" name="action" value="update" />
+						<input type="hidden" name="page_options" value="<?php echo htmlspecialchars(join(", ", $options));?>" />
+						<?php
+
+						submit_button();
+					?>
+					</form>
+				</div>
+				<?php
+			}
+		);
 	}
 
 	static public function addMetaBoxPost($post) {
@@ -116,7 +148,7 @@ class FacebookMetadataPlugin {
 	}
 
 	static public function getMetadataValue($post, $key) {
-		$returnFirstValue = true;	
+		$returnFirstValue = true;
 		return (string)get_post_meta(
 			$post->ID,
 			$key,
@@ -125,6 +157,16 @@ class FacebookMetadataPlugin {
 	}
 
 	static public function renderMetadataForm($post, $keys) {
+
+		$isDefaults = (is_string($post) and ($post == "defaults"));
+
+		// Work out subnamespace for the metadata
+		$subnamespace = "postmeta";
+		if ($isDefaults) {
+			$subnamespace .= "-default";
+		}
+
+		// Get current values for the fields
 		$currentmetadata = array();
 		foreach ($keys as $key) {
 			if ($key == "image") {
@@ -132,15 +174,22 @@ class FacebookMetadataPlugin {
 			} else {
 				$keytolookup = $key;
 			}
-		
-			$currentmetadata[$key] = self::getMetadataValue($post, self::getFullMetaDataKey($keytolookup));
+
+			if ($isDefaults) {
+				$currentmetadata[$key] = get_option(FacebookMetadataPlugin::NS."-".$subnamespace."-".$keytolookup);
+			} else {
+				$currentmetadata[$key] = self::getMetadataValue($post, self::getFullMetaDataKey($keytolookup));
+			}
 		}
-	
+
+		// Output fields, compile field names for returning (returning is necessary for the global options page)
+		$fieldids = array();
 		?>
 		<table class="<?php echo htmlspecialchars(self::NS."-metadataformtable");?>">
 			<?php
 			foreach ($currentmetadata as $key => $value) {
-				$fieldid = self::NS."-postmeta-".$key;
+				$fieldid = self::NS."-".$subnamespace."-".$key;
+				$fieldids[] = $fieldid;
 				?>
 				<tr>
 					<td class="label">
@@ -151,6 +200,7 @@ class FacebookMetadataPlugin {
 						switch ($key) {
 							case "image":
 								self::outputTextField($fieldid."_url", $value);
+								$fieldids[] = $fieldid."_url";
 								?>
 								<p><input id="<?php echo htmlspecialchars($fieldid);?>" class="button" type="button" value="Upload / Choose Image" /> (Must be larger than 200px by 200px)</p>
 								<?php
@@ -159,7 +209,7 @@ class FacebookMetadataPlugin {
 								self::outputTextField($fieldid, $value);
 						}
 						?>
-						
+
 					</td>
 				</tr>
 				<?php
@@ -167,6 +217,8 @@ class FacebookMetadataPlugin {
 			?>
 		</table>
 		<?php
+
+		return $fieldids;
 	}
 
 	static private function outputTextField($id, $value) {
