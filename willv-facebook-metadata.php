@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Facebook Metadata
- * Plugin URI: http://willv.net
+ * Plugin URI: https://github.com/wvoelcker/wordpress-facebook-metadata-plugin
  * Description: Allows setting of explicit image, title, and description for sharing on Facebook
  * Version: 1.0.0
  * Author: Will Voelcker
